@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     # LLM provider
     llm_provider: LLMProvider = LLMProvider.GROQ
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
-    groq_model: str = Field(default="llama-3.1-8b-instant", alias="GROQ_MODEL")
+    groq_model: str = Field(default="openai/gpt-oss-20b", alias="GROQ_MODEL")
     ollama_base_url: str = Field(
         default="http://localhost:11434", alias="OLLAMA_BASE_URL"
     )
@@ -175,8 +175,17 @@ class LLMFactory:
         Interview talking point: Groq uses LPU (Language Processing Unit)
         inference for significantly lower latency than GPU-based inference.
         """
-        # TODO: implement using langchain_groq.ChatGroq
-        raise NotImplementedError
+        from langchain_groq import ChatGroq
+
+        if not self._settings.groq_api_key.strip():
+            raise EnvironmentError(
+                "GROQ_API_KEY is missing. Add it to your local .env file."
+            )
+
+        return ChatGroq(
+            model=self._settings.groq_model,
+            api_key=self._settings.groq_api_key,
+        )
 
     def _create_ollama(self) -> BaseChatModel:
         """
@@ -265,8 +274,13 @@ class EmbeddingFactory:
         Interview talking point: local embeddings mean the corpus content
         never leaves the machine — important for proprietary datasets.
         """
-        # TODO: implement using langchain_community.embeddings.HuggingFaceEmbeddings
-        raise NotImplementedError
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+
+        return HuggingFaceEmbeddings(
+            model_name=self._settings.embedding_model,
+            model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
+        )
 
     def _create_openai(self):
         """
